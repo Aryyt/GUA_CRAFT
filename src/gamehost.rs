@@ -2,6 +2,7 @@ use std::error::Error;
 
 use sdl3::{
     gpu::{self, ColorTargetInfo, CommandBuffer, LoadOp, ShaderFormat},
+    keyboard::Keycode,
     pixels::Color,
 };
 
@@ -12,6 +13,8 @@ pub struct GameHost {
     events: sdl3::EventPump,
     gpu: sdl3::gpu::Device,
 }
+
+struct ExitRequest;
 
 impl GameHost {
     pub fn new() -> Result<Self, Box<dyn Error>> {
@@ -35,8 +38,11 @@ impl GameHost {
         })
     }
 
-    pub fn run(&self) -> Result<(), Box<dyn Error>> {
+    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         loop {
+            if let Some(ExitRequest) = &self.handle_event() {
+                break;
+            }
             self.update();
             self.draw()?;
         }
@@ -44,9 +50,24 @@ impl GameHost {
         Ok(())
     }
 
-    pub fn update(&self) {}
+    fn handle_event(&mut self) -> Option<ExitRequest> {
+        for event in self.events.poll_iter() {
+            match event {
+                sdl3::event::Event::Quit { .. }
+                | sdl3::event::Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => return Some(ExitRequest),
+                _ => {}
+            }
+        }
 
-    pub fn draw(&self) -> Result<(), Box<dyn Error>> {
+        None
+    }
+
+    fn update(&self) {}
+
+    fn draw(&self) -> Result<(), Box<dyn Error>> {
         let mut command_buffer = self.gpu.acquire_command_buffer()?;
 
         let swapchain = match command_buffer.acquire_swapchain_texture(&self.window)? {
