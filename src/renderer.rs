@@ -61,7 +61,7 @@ impl<'a> Renderer<'a> {
                 .with_usage(TextureUsage::DEPTH_STENCIL_TARGET)
                 .with_type(sdl3::gpu::TextureType::_2D)
                 .with_format(sdl3::gpu::TextureFormat::D32FloatS8Uint)
-                .with_num_levels(4)
+                .with_num_levels(1)
                 .with_layer_count_or_depth(1);
 
             let texture = self.gpu.create_texture(depthbuffer_creation_info)?;
@@ -100,7 +100,7 @@ impl<'a> Renderer<'a> {
     pub fn create_texture(
         &self,
         texture_creation_info: TextureCreateInfo,
-    ) -> Result<Texture<'_>, sdl3::Error> {
+    ) -> Result<Texture<'static>, sdl3::Error> {
         self.gpu.create_texture(texture_creation_info)
     }
 

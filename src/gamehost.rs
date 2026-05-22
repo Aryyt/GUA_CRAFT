@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, time::Instant};
 
 use sdl3::{
     event::WindowEvent,
@@ -7,28 +7,27 @@ use sdl3::{
     pixels::Color,
 };
 
-use crate::renderer::Renderer;
+use crate::{node::Node, renderer::Renderer};
 
-pub struct GameHost<'a> {
+pub struct GameHost {
     sdl_context: sdl3::Sdl,
     video_subsystem: sdl3::VideoSubsystem,
     events: sdl3::EventPump,
-    renderer: Renderer<'a>,
+    renderer: Renderer<'static>,
 
-    // Testing only
-    i: u8,
+    root_node: Option<Box<dyn Node>>,
 }
 
 struct ExitRequest;
 
-impl<'a> GameHost<'a> {
+impl GameHost {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         let sdl_context = sdl3::init()?;
         let video_subsystem = sdl_context.video()?;
         let window = video_subsystem
             .window("guacraft", 800, 600)
             .position_centered()
-            .resizable()
+            //.resizable()
             .vulkan()
             .build()?;
 
@@ -40,17 +39,31 @@ impl<'a> GameHost<'a> {
             video_subsystem,
             events,
             renderer,
-            i: 0,
+            root_node: None,
         })
     }
 
+    pub fn set_root_node<T>(&mut self, node: T)
+    where
+        T: Node,
+    {
+        self.root_node = Some(Box::new(node));
+    }
+
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
+        let mut previous_time = Instant::now();
         loop {
+            let time = Instant::now();
+            let dt = time - previous_time;
+
             if let Some(ExitRequest) = &self.handle_event()? {
                 break;
             }
-            self.update();
+
+            self.update(dt);
             self.draw()?;
+
+            previous_time = time;
         }
 
         Ok(())
@@ -76,26 +89,20 @@ impl<'a> GameHost<'a> {
         Ok(None)
     }
 
-    fn update(&mut self) {
-        self.i = (self.i + 1) % 255;
+    fn update(&mut self, dt: std::time::Duration) {
+        match &self.root_node {
+            None => {}
+            Some(n) => n.update(dt),
+        }
     }
 
     fn draw(&mut self) -> Result<(), Box<dyn Error>> {
-        let (backbuffer, _) = self.renderer.get_backbuffer();
-        let command_buffer = self.renderer.create_command_buffer()?;
-
-        let colour_target_info = ColorTargetInfo::default()
-            .with_texture(backbuffer)
-            .with_load_op(LoadOp::CLEAR)
-            .with_clear_color(Color::RGB(self.i, 100, 255 - self.i))
-            .with_store_op(sdl3::sys::gpu::SDL_GPUStoreOp::STORE);
-
-        let render_pass =
-            self.renderer
-                .begin_render_pass(&command_buffer, &[colour_target_info], None)?;
-
-        self.renderer.end_render_pass(render_pass);
-        command_buffer.submit()?;
+        match &self.root_node {
+            None => {}
+            Some(n) => {
+                n.draw(&self.renderer)?;
+            }
+        };
 
         self.renderer.end_frame()?;
 
