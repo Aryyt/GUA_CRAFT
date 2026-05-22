@@ -1,26 +1,24 @@
 use std::{error::Error, time::Instant};
 
-use sdl3::{
-    event::WindowEvent,
-    gpu::{ColorTargetInfo, LoadOp},
-    keyboard::Keycode,
-    pixels::Color,
+use sdl3::{event::WindowEvent, keyboard::Keycode};
+
+use crate::{
+    node::Node,
+    renderer::{Renderer, sdl::SdlRenderer},
 };
 
-use crate::{node::Node, renderer::Renderer};
-
-pub struct GameHost {
+pub struct GameHost<'a> {
     sdl_context: sdl3::Sdl,
     video_subsystem: sdl3::VideoSubsystem,
     events: sdl3::EventPump,
-    renderer: Renderer<'static>,
+    renderer: SdlRenderer<'a>,
 
     root_node: Option<Box<dyn Node>>,
 }
 
 struct ExitRequest;
 
-impl GameHost {
+impl<'a> GameHost<'a> {
     pub fn new() -> Result<Self, Box<dyn Error>> {
         let sdl_context = sdl3::init()?;
         let video_subsystem = sdl_context.video()?;
@@ -32,7 +30,7 @@ impl GameHost {
             .build()?;
 
         let events = sdl_context.event_pump()?;
-        let renderer = Renderer::new(window)?;
+        let renderer = SdlRenderer::new(window)?;
 
         Ok(GameHost {
             sdl_context,
@@ -97,6 +95,8 @@ impl GameHost {
     }
 
     fn draw(&mut self) -> Result<(), Box<dyn Error>> {
+        self.renderer.begin_frame()?;
+
         match &self.root_node {
             None => {}
             Some(n) => {

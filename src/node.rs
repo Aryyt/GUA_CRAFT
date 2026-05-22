@@ -27,7 +27,7 @@ pub trait Node: Any {
     ///
     /// # Remarks
     /// There are no limits to what behaviour is implemented by a node.
-    fn draw(&self, _renderer: &Renderer) -> Result<(), Box<dyn Error>> {
+    fn draw(&self, _renderer: &dyn Renderer) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
 }

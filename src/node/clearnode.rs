@@ -1,8 +1,4 @@
-use std::{
-    cell::{Cell, RefCell},
-    error::Error,
-    rc::Rc,
-};
+use std::{cell::RefCell, error::Error};
 
 use sdl3::{
     gpu::{BlitInfo, ColorTargetInfo, LoadOp, Texture, TextureCreateInfo, TextureUsage},
@@ -11,6 +7,7 @@ use sdl3::{
 
 use crate::{node::Node, renderer::Renderer};
 
+/// This node creates a texture, clears it, and blits it onto the render target
 pub struct ClearNode {
     position: (u32, u32),
     size: (u32, u32),
@@ -19,6 +16,7 @@ pub struct ClearNode {
     // We know that the texture backing this will be tied to the node itself
     backing_texture: RefCell<Option<Texture<'static>>>,
 }
+
 impl ClearNode {
     pub fn new() -> Self {
         Self {
@@ -61,7 +59,7 @@ impl Default for ClearNode {
 }
 
 impl Node for ClearNode {
-    fn draw(&self, renderer: &Renderer) -> Result<(), Box<dyn Error>> {
+    fn draw(&self, renderer: &dyn Renderer) -> Result<(), Box<dyn Error>> {
         // First check if we have a backing texture
         let mut backing_texture = self.backing_texture.borrow();
 
@@ -90,24 +88,21 @@ impl Node for ClearNode {
             .as_ref()
             .expect("We definitely have a texture at this point.");
 
-        let cb = renderer.create_command_buffer()?;
-
         let colour_target = ColorTargetInfo::default()
             .with_texture(backing_texture)
             .with_load_op(LoadOp::CLEAR)
             .with_clear_color(self.clear_colour);
 
-        let rp = renderer.begin_render_pass(&cb, &[colour_target], None)?;
+        renderer.begin_render_pass(&[colour_target], None)?;
+        renderer.end_render_pass()?;
 
-        renderer.end_render_pass(rp);
+        let (swapchain, _) = renderer.get_render_target();
 
-        let swapchain = renderer.get_backbuffer();
-
-        cb.blit_texture(
+        renderer.blit_texture(
             BlitInfo::default()
                 .with_source_texture(backing_texture)
                 .with_source_region(0, 0, 0, 1, 1)
-                .with_destination_texture(swapchain.0)
+                .with_destination_texture(swapchain)
                 .with_destination_region(
                     0,
                     self.position.0,
@@ -116,9 +111,7 @@ impl Node for ClearNode {
                     self.size.1,
                 )
                 .with_load_op(LoadOp::DONT_CARE),
-        );
-
-        cb.submit()?;
+        )?;
 
         Ok(())
     }

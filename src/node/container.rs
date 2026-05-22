@@ -90,7 +90,7 @@ impl Node for Container {
         }
     }
 
-    fn draw(&self, renderer: &Renderer) -> Result<(), Box<dyn Error>> {
+    fn draw(&self, renderer: &dyn Renderer) -> Result<(), Box<dyn Error>> {
         for node in &self.nodes {
             node.as_ref().draw(renderer)?;
         }
